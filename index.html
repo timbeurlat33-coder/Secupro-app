@@ -54,7 +54,7 @@ async function forgot(){
   try{
     const email=document.getElementById("email").value.trim();
     if(!email) throw new Error("Entre d'abord ton adresse e-mail.");
-    const redirectTo=window.location.origin+window.location.pathname/Secupro-app/;
+    const redirectTo="https://timbeurlat33-coder.github.io/Secupro-app/";
     const r=await fetch(U+"/auth/v1/recover",{
       method:"POST",
       headers:{"apikey":K,"Content-Type":"application/json"},
