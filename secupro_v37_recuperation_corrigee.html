@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SécuPro — Mot de passe</title>
+<style>
+body{margin:0;background:#07111f;color:#eef5ff;font-family:Arial;padding:18px}
+.card{max-width:680px;margin:20px auto;background:#0e1d31;border:1px solid #28415f;border-radius:18px;padding:20px}
+input{width:100%;box-sizing:border-box;padding:14px;margin:7px 0;border-radius:10px;border:1px solid #34506f;background:#091727;color:#fff}
+button{padding:13px 16px;border:0;border-radius:10px;margin:7px 5px 7px 0;font-weight:bold}
+.primary{background:#d7a93d}.secondary{background:#17314e;color:#fff}
+.ok{color:#67e0a0}.err{color:#ff8d8d}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>🛡️ SécuPro</h1>
+<p>Connexion et récupération du mot de passe.</p>
+<div id="state">🔐 Non connecté</div>
+</div>
+
+<div class="card" id="loginCard">
+<h2>Connexion</h2>
+<input id="email" type="email" placeholder="Adresse e-mail">
+<input id="pass" type="password" placeholder="Mot de passe">
+<button class="primary" onclick="login()">Se connecter</button>
+<button class="secondary" onclick="forgot()">Mot de passe oublié</button>
+<p id="msg"></p>
+</div>
+
+<div class="card" id="resetCard" style="display:none">
+<h2>🔑 Nouveau mot de passe</h2>
+<p>Choisis ton nouveau mot de passe.</p>
+<input id="newpass" type="password" placeholder="Nouveau mot de passe">
+<input id="newpass2" type="password" placeholder="Confirmer le nouveau mot de passe">
+<button class="primary" onclick="resetPassword()">Enregistrer</button>
+<p id="resetMsg"></p>
+</div>
+
+<script>
+const U="https://pbpjbtenysgipputzuiv.supabase.co";
+const K="sb_publishable_Wj_Yj-Uv9mWDgFOOhhRbyQ_oS8jDubz";
+
+/*
+IMPORTANT :
+Pour que le lien reçu par e-mail puisse revenir ici, cette page doit être
+hébergée sur une URL publique autorisée dans Supabase.
+Une page localhost ou un fichier content:// ne convient pas.
+*/
+
+function msg(t,c=""){let e=document.getElementById("msg");e.textContent=t;e.className=c}
+async function forgot(){
+  try{
+    const email=document.getElementById("email").value.trim();
+    if(!email) throw new Error("Entre d'abord ton adresse e-mail.");
+    const redirectTo=window.location.origin+window.location.pathname;
+    const r=await fetch(U+"/auth/v1/recover",{
+      method:"POST",
+      headers:{"apikey":K,"Content-Type":"application/json"},
+      body:JSON.stringify({email,redirect_to:redirectTo})
+    });
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.error_description||j.msg||j.message||"Erreur");
+    msg("E-mail de réinitialisation envoyé. Vérifie ta boîte mail.","ok");
+  }catch(e){msg(e.message,"err")}
+}
+
+async function login(){
+  try{
+    const r=await fetch(U+"/auth/v1/token?grant_type=password",{
+      method:"POST",
+      headers:{"apikey":K,"Content-Type":"application/json"},
+      body:JSON.stringify({
+        email:document.getElementById("email").value.trim(),
+        password:document.getElementById("pass").value
+      })
+    });
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.error_description||j.msg||j.message||"Erreur");
+    document.getElementById("state").textContent="🟢 Connecté";
+    msg("Connexion réussie.","ok");
+  }catch(e){msg(e.message,"err")}
+}
+
+async function resetPassword(){
+  try{
+    const a=document.getElementById("newpass").value;
+    const b=document.getElementById("newpass2").value;
+    if(a.length<8) throw new Error("Le mot de passe doit contenir au moins 8 caractères.");
+    if(a!==b) throw new Error("Les deux mots de passe sont différents.");
+
+    const hash=new URLSearchParams(location.hash.substring(1));
+    const accessToken=hash.get("access_token");
+    if(!accessToken) throw new Error("Lien de récupération invalide ou expiré.");
+
+    const r=await fetch(U+"/auth/v1/user",{
+      method:"PUT",
+      headers:{
+        "apikey":K,
+        "Authorization":"Bearer "+accessToken,
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({password:a})
+    });
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.error_description||j.msg||j.message||"Erreur");
+    document.getElementById("resetMsg").textContent="Mot de passe modifié. ✅";
+    document.getElementById("resetMsg").className="ok";
+  }catch(e){
+    document.getElementById("resetMsg").textContent=e.message;
+    document.getElementById("resetMsg").className="err";
+  }
+}
+
+function checkRecovery(){
+  const hash=new URLSearchParams(location.hash.substring(1));
+  if(hash.get("type")==="recovery" && hash.get("access_token")){
+    document.getElementById("loginCard").style.display="none";
+    document.getElementById("resetCard").style.display="block";
+    document.getElementById("state").textContent="🔑 Réinitialisation du mot de passe";
+  }
+}
+checkRecovery();
+</script>
+</body>
+</html>
